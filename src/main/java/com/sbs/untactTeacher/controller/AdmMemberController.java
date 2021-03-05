@@ -14,46 +14,50 @@ import org.springframework.web.bind.annotation.ResponseBody;
 import com.sbs.untactTeacher.dto.Member;
 import com.sbs.untactTeacher.dto.ResultData;
 import com.sbs.untactTeacher.service.MemberService;
+import com.sbs.untactTeacher.util.Util;
 
 @Controller
 public class AdmMemberController {
 	@Autowired
 	private MemberService memberService;
-	
+
 	@RequestMapping("/adm/member/login")
 	public String login() {
 		return "adm/member/login";
 	}
-	
 
 	@RequestMapping("/adm/member/doLogin")
 	@ResponseBody
-	public ResultData doLogin(String loginId, String loginPw, HttpSession session) {
+	public String doLogin(String loginId, String loginPw, String redirectUrl, HttpSession session) {
 		if (loginId == null) {
-			return new ResultData("F-1", "loginId를 입력해주세요.");
+			return Util.msgAndBack("loginId를 입력해주세요.");
 		}
 
 		Member existingMember = memberService.getMemberByLoginId(loginId);
 
 		if (existingMember == null) {
-			return new ResultData("F-2", "존재하지 않는 로그인아이디 입니다.", "loginId", loginId);
+			return Util.msgAndBack("존재하지 않는 로그인아이디 입니다.");
 		}
 
 		if (loginPw == null) {
-			return new ResultData("F-1", "loginPw를 입력해주세요.");
+			return Util.msgAndBack("loginPw를 입력해주세요.");
 		}
 
 		if (existingMember.getLoginPw().equals(loginPw) == false) {
-			return new ResultData("F-3", "비밀번호가 일치하지 않습니다.");
+			return Util.msgAndBack("비밀번호가 일치하지 않습니다.");
 		}
 		
 		if ( memberService.isAdmin(existingMember) == false ) {
-			return new ResultData("F-4", "관리자만 접근할 수 있는 페이지 입니다.");
+			return Util.msgAndBack("관리자만 접근할 수 있는 페이지 입니다.");
 		}
 
 		session.setAttribute("loginedMemberId", existingMember.getId());
-
-		return new ResultData("S-1", String.format("%s님 환영합니다.", existingMember.getNickname()));
+		
+		String msg = String.format("%s님 환영합니다.", existingMember.getNickname());
+		
+		redirectUrl = Util.ifEmpty(redirectUrl, "../home/main");
+		
+		return Util.msgAndReplace(msg, redirectUrl);
 	}
 
 	@RequestMapping("/adm/member/doModify")
@@ -67,5 +71,13 @@ public class AdmMemberController {
 		param.put("id", loginedMemberId);
 
 		return memberService.modifyMember(param);
+	}
+
+	@RequestMapping("/adm/member/doLogout")
+	@ResponseBody
+	public String doLogout(HttpSession session) {
+		session.removeAttribute("loginedMemberId");
+
+		return Util.msgAndReplace("로그아웃 되었습니다.", "../member/login");
 	}
 }
